@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Colleague</title>
+<style>
+:root{
+  --green:#008069; --green-dark:#075e54; --accent:#25d366;
+  --bg:#efeae2; --in:#ffffff; --out:#d9fdd3;
+  --text:#111b21; --muted:#667781; --blue:#53bdeb; --panel:#f0f2f5;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:#d1d7db;color:var(--text);
+  display:flex;justify-content:center;align-items:center;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer}
+
+/* ---------- Phone frame ---------- */
+.phone{
+  position:relative;width:100%;max-width:480px;
+  height:100vh;height:100dvh;
+  display:flex;flex-direction:column;overflow:hidden;background:var(--bg);
+}
+@media (min-width:600px) and (min-height:720px){
+  .phone{height:calc(100dvh - 40px);max-height:880px;border-radius:24px;
+    box-shadow:0 12px 40px rgba(11,20,26,.25)}
+}
+
+/* ---------- Lock screen ---------- */
+.lock{
+  position:absolute;inset:0;z-index:5;color:#fff;
+  background:radial-gradient(120% 80% at 20% 0%,#1f8a7c 0%,transparent 60%),
+             linear-gradient(165deg,#0a2f2c 0%,#0f4f49 50%,#14675e 100%);
+  display:flex;flex-direction:column;align-items:center;
+  padding:max(48px,env(safe-area-inset-top)) 16px 28px;
+}
+.lock .clock{font-size:clamp(56px,18vw,86px);font-weight:250;letter-spacing:-1px;line-height:1}
+.lock .date{margin-top:6px;font-size:16px;opacity:.85}
+.notif{
+  margin-top:clamp(28px,8vh,70px);width:100%;max-width:400px;text-align:left;
+  background:rgba(255,255,255,.9);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border:none;border-radius:20px;padding:12px 14px 14px;color:var(--text);
+  box-shadow:0 8px 24px rgba(0,0,0,.25);animation:drop .5s cubic-bezier(.2,.9,.3,1.2) both .3s;
+}
+.notif:hover{transform:translateY(-1px)}
+.notif:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.notif-top{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.app-icon{width:22px;height:22px;border-radius:6px;background:var(--accent);display:grid;place-items:center}
+.app-icon svg{width:14px;height:14px;fill:#fff}
+.notif-top .when{margin-left:auto}
+.notif-body{display:flex;gap:10px;margin-top:10px;align-items:center}
+.notif-body .avatar{width:42px;height:42px}
+.notif-title{font-weight:600;font-size:15px}
+.notif-text{font-size:14px;color:#3b4a54;margin-top:2px;line-height:1.35}
+.lock .hint{margin-top:auto;font-size:13px;opacity:.75;display:flex;align-items:center;gap:8px}
+.lock .hint::before{content:"";width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.7)}
+.lock.leaving{animation:fadeUp .35s ease-in forwards}
+
+/* ---------- Header ---------- */
+.header{
+  background:var(--green);color:#fff;display:flex;align-items:center;gap:6px;
+  padding:8px 8px;padding-top:max(8px,env(safe-area-inset-top));flex:none;
+}
+.icon-btn{background:none;border:none;color:#fff;padding:8px;border-radius:50%;display:grid;place-items:center;transition:background .15s}
+.icon-btn svg{width:22px;height:22px;fill:currentColor}
+.icon-btn.dim{pointer-events:none}
+.icon-btn:not(.dim):hover{background:rgba(255,255,255,.15)}
+.icon-btn:focus-visible{outline:2px solid #fff;outline-offset:1px}
+.avatar{width:40px;height:40px;border-radius:50%;overflow:hidden;flex:none;background:#dfe5e7}
+.avatar svg{width:100%;height:100%;display:block}
+.who{flex:1;min-width:0;line-height:1.2;margin-left:4px}
+.who .name{font-size:16.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .status{font-size:13px;opacity:.85}
+.progress{height:3px;background:rgba(0,128,105,.15);flex:none}
+.progress .bar{height:100%;width:0;background:var(--accent);transition:width .5s ease}
+
+/* ---------- Chat area ---------- */
+.chat{
+  flex:1;overflow-y:auto;padding:10px clamp(10px,4%,24px) 12px;
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(rgba(0,0,0,.045) 1.2px,transparent 1.2px),
+    radial-gradient(rgba(0,0,0,.03) 1px,transparent 1px);
+  background-size:22px 22px,22px 22px;background-position:0 0,11px 11px;
+  scroll-behavior:smooth;
+}
+.chip{display:table;margin:6px auto 10px;background:#fff;color:var(--muted);
+  font-size:12.5px;padding:5px 12px;border-radius:8px;box-shadow:0 1px .5px rgba(11,20,26,.13)}
+.sys{max-width:90%;margin:0 auto 12px;background:#ffeecd;color:#54656f;font-size:12.5px;
+  text-align:center;padding:7px 12px;border-radius:8px;line-height:1.4;box-shadow:0 1px .5px rgba(11,20,26,.1)}
+
+.row{display:flex;margin-top:10px;padding:0 8px}
+.row.cont{margin-top:3px}
+.row.out{justify-content:flex-end}
+.bubble{
+  position:relative;max-width:min(82%,440px);
+  padding:6px 8px 8px 9px;border-radius:8px;
+  font-size:clamp(14px,3.6vw,15px);line-height:1.4;
+  box-shadow:0 1px .5px rgba(11,20,26,.13);overflow-wrap:anywhere;
+  animation:pop .2s ease-out both;
+}
+.in .bubble{background:var(--in)}
+.out .bubble{background:var(--out)}
+.row:not(.cont).in .bubble{border-top-left-radius:0}
+.row:not(.cont).out .bubble{border-top-right-radius:0}
+.row:not(.cont).in .bubble::before,
+.row:not(.cont).out .bubble::before{content:"";position:absolute;top:0;width:8px;height:13px;background:inherit}
+.row:not(.cont).in .bubble::before{left:-8px;clip-path:polygon(0 0,100% 0,100% 100%)}
+.row:not(.cont).out .bubble::before{right:-8px;clip-path:polygon(0 0,100% 0,0 100%)}
+.txt{white-space:pre-wrap}
+.txt::after{content:"";display:inline-block;width:48px}
+.out .txt::after{width:66px}
+.meta{position:absolute;right:7px;bottom:4px;display:flex;align-items:center;gap:3px;
+  font-size:11px;color:var(--muted)}
+.tick{width:16px;height:11px;color:#8696a0;transition:color .3s}
+.tick.read{color:var(--blue)}
+
+.typing{display:flex;gap:4px;padding:12px 14px!important}
+.typing span{width:7px;height:7px;border-radius:50%;background:#8696a0;animation:bounce 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.15s}
+.typing span:nth-child(3){animation-delay:.3s}
+
+/* ---------- Reply panel + input bar ---------- */
+.replies{background:var(--panel);padding:10px 12px 4px;border-top:1px solid #e3e6e8;
+  max-height:48%;overflow-y:auto;flex:none;animation:slideUp .25s ease-out}
+.replies-head{display:flex;justify-content:space-between;align-items:center;
+  font-size:12px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.step{background:#e1f5ee;color:var(--green-dark);padding:2px 8px;border-radius:10px;
+  text-transform:none;letter-spacing:0;font-weight:600}
+.reply{
+  display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;
+  background:#fff;color:var(--text);border:1px solid #d1d7db;border-radius:14px;
+  padding:11px 14px;margin-bottom:8px;font-size:clamp(13.5px,3.5vw,14.5px);line-height:1.4;
+  transition:border-color .15s,background .15s,transform .1s;
+}
+.reply svg{flex:none;width:16px;height:16px;fill:var(--green);margin-top:2px}
+.reply:hover{border-color:var(--green);background:#f3fbf8}
+.reply:active{transform:scale(.99)}
+.reply:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.restart{display:block;margin:4px auto 10px;background:var(--green);color:#fff;border:none;
+  border-radius:22px;padding:11px 24px;font-size:14px;font-weight:600}
+.restart:hover{background:var(--green-dark)}
+
+.inputbar{display:flex;align-items:center;gap:8px;background:var(--panel);flex:none;
+  padding:6px 8px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+.field{flex:1;display:flex;align-items:center;gap:10px;background:#fff;border-radius:24px;
+  padding:10px 14px;color:var(--muted);font-size:15px;min-width:0}
+.field svg{width:22px;height:22px;flex:none;fill:#54656f}
+.field span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mic{width:46px;height:46px;border-radius:50%;background:var(--green);display:grid;place-items:center;flex:none}
+.mic svg{width:22px;height:22px;fill:#fff}
+
+/* ---------- Animations ---------- */
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-4px);opacity:1}}
+@keyframes drop{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:none}}
+@keyframes fadeUp{to{opacity:0;transform:translateY(-30px)}}
+@keyframes slideUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <!-- Lock screen notification -->
+  <div class="lock" id="lock">
+    <div class="clock" id="lockTime">09:41</div>
+    <div class="date" id="lockDate"></div>
+
+    <button class="notif" id="notif" onclick="openChat()" aria-label="Open message">
+      <div class="notif-top">
+        <div class="app-icon"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z"/></svg></div>
+        <span id="appName">Messages</span><span class="when">now</span>
+      </div>
+      <div class="notif-body">
+        <div class="avatar" data-avatar></div>
+        <div>
+          <div class="notif-title" id="notifTitle">Colleague</div>
+          <div class="notif-text" id="notifText">You have a new message from your colleague.</div>
+        </div>
+      </div>
+    </button>
+
+    <div class="hint">Tap the notification to open</div>
+  </div>
+
+  <!-- Chat header -->
+  <header class="header">
+    <span class="icon-btn dim" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4l1.4 1.4L7.8 11H20v2H7.8l5.6 5.6L12 20l-8-8z"/></svg></span>
+    <div class="avatar" data-avatar></div>
+    <div class="who">
+      <div class="name" id="contactName">Colleague</div>
+      <div class="status" id="status" aria-live="polite">Team member</div>
+    </div>
+    <span class="icon-btn dim" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11z"/></svg></span>
+    <span class="icon-btn dim" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></span>
+    <button class="icon-btn" id="soundBtn" type="button" aria-pressed="true" aria-label="Sound on" title="Sound on/off"></button>
+  </header>
+  <div class="progress"><div class="bar" id="bar"></div></div>
+
+  <!-- Messages -->
+  <main class="chat" id="chat" aria-live="polite"></main>
+
+  <!-- Reply options -->
+  <section class="replies" id="replies" hidden>
+    <div class="replies-head"><span>Choose your reply</span><span class="step" id="step"></span></div>
+    <div id="options"></div>
+  </section>
+
+  <!-- Decorative input bar -->
+  <div class="inputbar" aria-hidden="true">
+    <div class="field">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-3.5-9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm7 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 17.5a5.5 5.5 0 0 0 5-3.2H7a5.5 5.5 0 0 0 5 3.2z"/></svg>
+      <span id="field">Message</span>
+    </div>
+    <div class="mic"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/></svg></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   CONTENT — edit everything here
+   ========================================================= */
+const CONFIG = {
+  contactName: "Colleague",
+  contactRole: "Team member",
+  appName: "Messages",
+
+  // Avatar options: "woman", "man", "healthcare", "silhouette", "initials"
+  avatar: "woman",
+
+  // Sound effects on by default (learners can toggle in the header)
+  sound: true,
+
+  notificationText: "You have a new message from your colleague.",
+  practiceNotice: "This is a practice conversation for self-assessment. Always follow your organisation's procedures.",
+  greeting: "Hi! I'd like to talk through a few work situations with you. I'd value your perspective.",
+  greetingAgain: "Hi again! Let's go through these situations one more time.",
+  closing: "Thanks for sharing your thoughts! Talking these situations through helps us all work safely and consistently."
+};
+
+const questions = [
+  {
+    question: "Here's the first situation: [describe the situation]. What do you think we should do?",
+    options: [
+      "[Recommended action]",
+      "[Alternative action]",
+      "[Less suitable action]"
+    ],
+    responses: [
+      "Exactly! [Explain why this is the right approach.]",
+      "That's worth considering. [Explain what should come first or what's missing.]",
+      "I see why you'd think that, but [explain the risk and the better approach]."
+    ]
+  },
+  {
+    question: "Let's look at another situation: [describe the situation]. What would you do?",
+    options: [
+      "[Recommended action]",
+      "[Alternative action]",
+      "[Less suitable action]"
+    ],
+    responses: [
+      "Great choice! [Explain why this is the right approach.]",
+      "Good thinking. [Explain how to build on this choice.]",
+      "Let's be careful here. [Explain the risk and the better approach.]"
+    ]
+  },
+  {
+    question: "One last situation: [describe the situation]. How should we handle it?",
+    options: [
+      "[Recommended action]",
+      "[Alternative action]",
+      "[Less suitable action]"
+    ],
+    responses: [
+      "I agree! [Explain why this is the right approach.]",
+      "That's a useful step. [Explain what else needs to happen.]",
+      "Let's avoid that. [Explain why and what the correct procedure is.]"
+    ]
+  }
+];
+
+/* =========================================================
+   AVATARS
+   ========================================================= */
+const SVG_OPEN = '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Contact photo">';
+
+const AVATARS = {
+  woman: SVG_OPEN + `
+    <rect width="64" height="64" fill="#ffd8a8"/>
+    <g fill="#3b2314">
+      <circle cx="20" cy="27" r="9"/><circle cx="44" cy="27" r="9"/>
+      <circle cx="24" cy="17" r="9"/><circle cx="40" cy="17" r="9"/>
+      <circle cx="32" cy="13" r="9"/><circle cx="18" cy="38" r="7"/><circle cx="46" cy="38" r="7"/>
+    </g>
+    <rect x="28.5" y="38" width="7" height="10" rx="3" fill="#8d5a3b"/>
+    <path d="M9 64c1.5-12 9.5-18 23-18s21.5 6 23 18z" fill="#7e57c2"/>
+    <path d="M27 46.3L32 52l5-5.7Q32 48.5 27 46.3z" fill="#8d5a3b"/>
+    <ellipse cx="32" cy="29.5" rx="10" ry="11.5" fill="#a86b47"/>
+    <g fill="#3b2314"><circle cx="25" cy="19.5" r="4.5"/><circle cx="32" cy="18" r="4.5"/><circle cx="39" cy="19.5" r="4.5"/></g>
+    <g fill="none" stroke="#1b1b1b" stroke-width="1.4">
+      <circle cx="27.5" cy="29.5" r="3.6"/><circle cx="36.5" cy="29.5" r="3.6"/><path d="M31.1 29.5h1.8"/>
+    </g>
+    <circle cx="27.5" cy="29.8" r="1.1" fill="#1b1b1b"/><circle cx="36.5" cy="29.8" r="1.1" fill="#1b1b1b"/>
+    <path d="M28.8 35.6c1.9 1.6 4.5 1.6 6.4 0" stroke="#5a2e1c" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <circle cx="21.8" cy="33.5" r="1.3" fill="#ffca28"/>
+  </svg>`,
+
+  man: SVG_OPEN + `
+    <rect width="64" height="64" fill="#bbdefb"/>
+    <rect x="28" y="38" width="8" height="10" rx="3" fill="#e0a77e"/>
+    <path d="M8 64c1.5-12 10-18 24-18s22.5 6 24 18z" fill="#37474f"/>
+    <path d="M26 46.2L32 58l6-11.8Q32 48.5 26 46.2z" fill="#ffffff"/>
+    <path d="M30.7 49.5h2.6l.8 1.8-1.3 5.7h-1.6l-1.3-5.7z" fill="#1e88e5"/>
+    <path d="M23.5 47.5l8.5 12M40.5 47.5l-8.5 12" stroke="#263238" stroke-width="1.6"/>
+    <circle cx="22" cy="30" r="2.3" fill="#e0a77e"/><circle cx="42" cy="30" r="2.3" fill="#e0a77e"/>
+    <ellipse cx="32" cy="29" rx="10" ry="11.5" fill="#f1b88f"/>
+    <path d="M21.5 27c-.6-8 4.2-12.5 10.5-12.5S43.1 19 42.5 27c-1.6-3.8-4.6-5.8-10.5-6-5.9.2-8.9 2.2-10.5 6z" fill="#4e342e"/>
+    <path d="M22.2 31c.3 7 4.4 10.5 9.8 10.5s9.5-3.5 9.8-10.5c-1.4 2.6-3 3.6-4.6 3.6-1.5-1.6-3.3-2.1-5.2-2.1s-3.7.5-5.2 2.1c-1.6 0-3.2-1-4.6-3.6z" fill="#4e342e"/>
+    <path d="M29.5 36.8c1.6 1 3.4 1 5 0" stroke="#f1b88f" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <circle cx="28" cy="29" r="1.3" fill="#212121"/><circle cx="36" cy="29" r="1.3" fill="#212121"/>
+    <path d="M25.8 26.2h4.2M34 26.2h4.2" stroke="#4e342e" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  healthcare: SVG_OPEN + `
+    <rect width="64" height="64" fill="#c8e6c9"/>
+    <rect x="28.5" y="38" width="7" height="10" rx="3" fill="#d39a6a"/>
+    <path d="M9 64c1.5-12 9.5-18 23-18s21.5 6 23 18z" fill="#26a69a"/>
+    <path d="M27 46.3L32 53l5-6.7Q32 48.5 27 46.3z" fill="#d39a6a"/>
+    <path d="M22 47c0 8 4 12.5 10 12.5S42 55 42 47" stroke="#37474f" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <circle cx="32" cy="59.5" r="2.5" fill="#b0bec5" stroke="#37474f" stroke-width="1.2"/>
+    <ellipse cx="32" cy="29.5" rx="10" ry="11.5" fill="#e8b48a"/>
+    <path d="M21 27c0-9 5-14 11-14s11 5 11 14c-3-2-7-3-11-3s-8 1-11 3z" fill="#4db6ac"/>
+    <path d="M21 27c3-2 7-3 11-3s8 1 11 3" stroke="#00897b" stroke-width="1.4" fill="none"/>
+    <g fill="#80cbc4"><circle cx="27" cy="18" r="1"/><circle cx="33" cy="16.5" r="1"/><circle cx="38" cy="19" r="1"/><circle cx="30" cy="21" r="1"/></g>
+    <circle cx="28" cy="30.5" r="1.3" fill="#2d1b14"/><circle cx="36" cy="30.5" r="1.3" fill="#2d1b14"/>
+    <path d="M28.6 35.3c2 1.9 4.8 1.9 6.8 0" fill="none" stroke="#7a3f25" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
+  silhouette: SVG_OPEN + `
+    <rect width="64" height="64" fill="#dfe5e7"/>
+    <circle cx="32" cy="25" r="11" fill="#ffffff"/>
+    <path d="M11 64c1.5-13 10-20 21-20s19.5 7 21 20z" fill="#ffffff"/>
+  </svg>`
+};
+
+function initialsAvatar(name) {
+  const ini = name.trim().split(/\s+/).map(w => w[0] || "").slice(0, 2).join("").toUpperCase()
+    .replace(/[<>&"]/g, "");
+  return SVG_OPEN + `
+    <rect width="64" height="64" fill="#5c6bc0"/>
+    <text x="32" y="33" text-anchor="middle" dominant-baseline="central"
+      font-family="-apple-system,Segoe UI,Roboto,Arial,sans-serif" font-size="24" font-weight="600" fill="#fff">${ini || "?"}</text>
+  </svg>`;
+}
+
+function getAvatar() {
+  if (CONFIG.avatar === "initials") return initialsAvatar(CONFIG.contactName);
+  return AVATARS[CONFIG.avatar] || AVATARS.woman;
+}
+
+/* =========================================================
+   SOUND EFFECTS (generated in the browser — no audio files)
+   ========================================================= */
+let audioCtx = null;
+let soundOn = CONFIG.sound;
+
+function getAudio() {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    audioCtx = new AC();
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+function tone(freq, start, dur, type = "sine", vol = 0.2, endFreq) {
+  const c = getAudio();
+  if (!c) return;
+  const t = c.currentTime + start;
+  const osc = c.createOscillator();
+  const gain = c.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gain).connect(c.destination);
+  osc.start(t);
+  osc.stop(t + dur + 0.03);
+}
+
+const SFX = {
+  send()    { tone(480, 0, 0.09, "sine", 0.18, 950); },                       // quick upward "pop"
+  receive() { tone(1046, 0, 0.09, "sine", 0.15); tone(1568, 0.07, 0.15, "sine", 0.12); }, // soft two-note ding
+  notify()  { tone(784, 0, 0.13, "triangle", 0.18); tone(1175, 0.12, 0.13, "triangle", 0.18); tone(1568, 0.24, 0.24, "triangle", 0.16); }
+};
+
+function play(name) {
+  if (!soundOn || !SFX[name]) return;
+  try { SFX[name](); } catch (e) { /* audio not available */ }
+}
+
+const ICON_SOUND_ON  = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>';
+const ICON_SOUND_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3l2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>';
+
+function updateSoundButton() {
+  const btn = document.getElementById("soundBtn");
+  btn.innerHTML = soundOn ? ICON_SOUND_ON : ICON_SOUND_OFF;
+  btn.setAttribute("aria-pressed", String(soundOn));
+  btn.setAttribute("aria-label", soundOn ? "Sound on" : "Sound off");
+}
+
+/* =========================================================
+   CHAT ENGINE
+   ========================================================= */
+const TICKS = `<svg class="tick" viewBox="0 0 16 11" aria-hidden="true"><path fill="currentColor" d="M11.07.65 4.9 7.24 2.4 4.86 1.3 6l3.6 3.45 7.3-7.7zM14.6.65 8.43 7.24l-.93-.9-1.1 1.15 2.05 1.96 7.3-7.7z"/></svg>`;
+const REPLY_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>`;
+
+const $ = id => document.getElementById(id);
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sleep = ms => new Promise(r => setTimeout(r, reduceMotion ? Math.min(ms, 150) : ms));
+const clock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+let current = 0, busy = false, lastWho = null, typingRow = null;
+
+/* Apply config to the page */
+document.title = CONFIG.contactName;
+$("appName").textContent = CONFIG.appName;
+$("notifTitle").textContent = CONFIG.contactName;
+$("notifText").textContent = CONFIG.notificationText;
+$("contactName").textContent = CONFIG.contactName;
+$("status").textContent = CONFIG.contactRole;
+$("notif").setAttribute("aria-label", "Open message from " + CONFIG.contactName);
+document.querySelectorAll("[data-avatar]").forEach(el => el.innerHTML = getAvatar());
+$("lockTime").textContent = clock();
+$("lockDate").textContent = new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
+
+updateSoundButton();
+$("soundBtn").onclick = () => {
+  soundOn = !soundOn;
+  updateSoundButton();
+  if (soundOn) play("receive");
+};
+
+/* Try the notification chime when it appears (browsers may block sound until the learner taps) */
+setTimeout(() => {
+  try {
+    const c = getAudio();
+    if (c && c.state === "running") play("notify");
+  } catch (e) {}
+}, 450);
+
+function scrollChat() { const c = $("chat"); c.scrollTop = c.scrollHeight; }
+
+function addMessage(text, who) {
+  const row = document.createElement("div");
+  row.className = `row ${who}${lastWho === who ? " cont" : ""}`;
+  lastWho = who;
+
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+
+  const txt = document.createElement("span");
+  txt.className = "txt";
+  txt.textContent = text;
+
+  const meta = document.createElement("span");
+  meta.className = "meta";
+  meta.innerHTML = `<span>${clock()}</span>${who === "out" ? TICKS : ""}`;
+
+  bubble.append(txt, meta);
+  row.append(bubble);
+  $("chat").append(row);
+  scrollChat();
+  return row;
+}
+
+function showTyping() {
+  $("status").textContent = "typing…";
+  typingRow = document.createElement("div");
+  typingRow.className = `row in${lastWho === "in" ? " cont" : ""}`;
+  typingRow.innerHTML = `<div class="bubble typing" aria-label="Typing"><span></span><span></span><span></span></div>`;
+  $("chat").append(typingRow);
+  scrollChat();
+}
+
+function hideTyping() {
+  if (typingRow) typingRow.remove();
+  typingRow = null;
+  $("status").textContent = "online";
+}
+
+async function say(text) {
+  showTyping();
+  await sleep(Math.min(700 + text.length * 12, 2200));
+  hideTyping();
+  addMessage(text, "in");
+  play("receive");
+  await sleep(250);
+}
+
+function setProgress(done) {
+  $("bar").style.width = (done / questions.length * 100) + "%";
+}
+
+function renderOptions() {
+  const box = $("options");
+  box.innerHTML = "";
+  questions[current].options.forEach((opt, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "reply";
+    btn.innerHTML = REPLY_ICON;
+    btn.append(document.createTextNode(opt));
+    btn.onclick = () => choose(i);
+    box.append(btn);
+  });
+  $("step").textContent = `Situation ${current + 1} of ${questions.length}`;
+  $("field").textContent = "Choose a reply above";
+  $("replies").hidden = false;
+  setProgress(current);
+  scrollChat();
+}
+
+function hideOptions() {
+  $("replies").hidden = true;
+  $("field").textContent = "Message";
+}
+
+function showEnd() {
+  $("options").innerHTML = "";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "restart";
+  btn.textContent = "Start again";
+  btn.onclick = () => start(CONFIG.greetingAgain);
+  $("options").append(btn);
+  $("step").textContent = "Activity complete";
+  $("field").textContent = "Message";
+  $("replies").hidden = false;
+  setProgress(questions.length);
+}
+
+async function choose(index) {
+  if (busy) return;
+  busy = true;
+
+  const q = questions[current];
+  hideOptions();
+
+  const sent = addMessage(q.options[index], "out");
+  play("send");
+  await sleep(600);
+  sent.querySelector(".tick")?.classList.add("read");
+  await sleep(300);
+
+  await say(q.responses[index]);
+  current++;
+
+  if (current < questions.length) {
+    await say(questions[current].question);
+    renderOptions();
+  } else {
+    await say(CONFIG.closing);
+    showEnd();
+  }
+  busy = false;
+}
+
+async function start(greeting) {
+  busy = true;
+  current = 0;
+  lastWho = null;
+  hideOptions();
+  setProgress(0);
+
+  const chat = $("chat");
+  chat.innerHTML = `<div class="chip">Today</div>`;
+  const notice = document.createElement("div");
+  notice.className = "sys";
+  notice.textContent = CONFIG.practiceNotice;
+  chat.append(notice);
+  $("status").textContent = "online";
+
+  await sleep(400);
+  await say(greeting);
+  await say(questions[0].question);
+  renderOptions();
+  busy = false;
+}
+
+function openChat() {
+  getAudio(); // unlock audio on the learner's tap
+  const lock = $("lock");
+  lock.classList.add("leaving");
+  setTimeout(() => lock.hidden = true, reduceMotion ? 0 : 340);
+  start(CONFIG.greeting);
+}
+</script>
+</body>
+</html>
